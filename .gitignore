@@ -8,3 +8,5 @@ package-lock.json
 samconfig.toml
 frontend/secrets
 .DS_Store
+
+pi/target
