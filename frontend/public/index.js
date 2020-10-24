@@ -35,12 +35,6 @@ function refresh(preloadedData) {
 }
 
 async function init() {
-
-
-
-  console.log('TODO init');
-
-
   const socket = new WebSocket("wss://scuv0gmugl.execute-api.eu-central-1.amazonaws.com/Prod");
   socket.onopen = function (event) {
     status.innerText = 'Status: Connected';
