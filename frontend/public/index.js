@@ -141,7 +141,6 @@ async function init() {
         //   'f00', '0f0', '00f'
         // ][Math.floor(8 * Math.random())];
         const newBg = activePaletteColor;
-        console.log('newBg:', newBg);
         socket.send(JSON.stringify({
           action: 'sendmessage',
           body: 'foo',
@@ -153,10 +152,6 @@ async function init() {
       };
     }
   }
-
-  console.log('socket, please run');
-
-
 }
 
 init()
