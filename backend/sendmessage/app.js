@@ -9,20 +9,20 @@ const { TABLE_NAME } = process.env;
 
 exports.handler = async event => {
   let connectionData;
-  
+
   try {
     connectionData = await ddb.scan({ TableName: TABLE_NAME, ProjectionExpression: 'connectionId' }).promise();
   } catch (e) {
     return { statusCode: 500, body: e.stack };
   }
-  
+
   const apigwManagementApi = new AWS.ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
-  
-  const postData = JSON.parse(event.body).data;
-  
+
+  const postData = `RESP: ${JSON.parse(event.body).data}`;
+
   const postCalls = connectionData.Items.map(async ({ connectionId }) => {
     try {
       await apigwManagementApi.postToConnection({ ConnectionId: connectionId, Data: postData }).promise();
@@ -35,7 +35,7 @@ exports.handler = async event => {
       }
     }
   });
-  
+
   try {
     await Promise.all(postCalls);
   } catch (e) {

@@ -1,6 +1,6 @@
 set -e
 
-# Uncommited file, contains "foo@bar.com/path/to/dir"
+# Uncommited file, contains "export SSHHOST=foo@bar.com/path/to/dir"
 source secrets
 
 

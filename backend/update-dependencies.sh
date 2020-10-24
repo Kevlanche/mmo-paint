@@ -1,3 +1,3 @@
-cd onconnect && ncu -u && npm install && cd ..
-cd ondisconnect && ncu -u && npm install && cd ..
-cd sendmessage && ncu -u && npm install && cd ..
+cd onconnect && npm install && cd ..
+cd ondisconnect && npm install && cd ..
+cd sendmessage && npm install && cd ..
