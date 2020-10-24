@@ -9,11 +9,20 @@ Description: >
 Parameters:
   TableName:
     Type: String
-    Default: 'simplechat_connections'
+    Default: 'mmopaint_connections'
     Description: (Required) The name of the new DynamoDB to store connection identifiers for each connected clients. Minimum 3 characters
     MinLength: 3
     MaxLength: 50
     AllowedPattern: ^[A-Za-z_]+$
+    ConstraintDescription: 'Required. Can be characters and underscore only. No numbers or special characters allowed.'
+
+  BucketName:
+    Type: String
+    Default: 'mmopaint-data'
+    Description: (Required) The name of the new S3 Bucket to store paint data in. Minimum 3 characters
+    MinLength: 3
+    MaxLength: 50
+    AllowedPattern: ^[A-Za-z\-]+$
     ConstraintDescription: 'Required. Can be characters and underscore only. No numbers or special characters allowed.'
 
 Resources:
@@ -40,7 +49,7 @@ Resources:
       ApiId: !Ref SimpleChatWebSocket
       Description: Connect Integration
       IntegrationType: AWS_PROXY
-      IntegrationUri: 
+      IntegrationUri:
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnConnectFunction.Arn}/invocations
   DisconnectRoute:
@@ -60,7 +69,7 @@ Resources:
       ApiId: !Ref SimpleChatWebSocket
       Description: Disconnect Integration
       IntegrationType: AWS_PROXY
-      IntegrationUri: 
+      IntegrationUri:
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnDisconnectFunction.Arn}/invocations
   SendRoute:
@@ -80,7 +89,7 @@ Resources:
       ApiId: !Ref SimpleChatWebSocket
       Description: Send Integration
       IntegrationType: AWS_PROXY
-      IntegrationUri: 
+      IntegrationUri:
         Fn::Sub:
             arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SendMessageFunction.Arn}/invocations
   Deployment:
@@ -98,6 +107,19 @@ Resources:
       Description: Prod Stage
       DeploymentId: !Ref Deployment
       ApiId: !Ref SimpleChatWebSocket
+  DataBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      CorsConfiguration:
+        CorsRules:
+          -
+            AllowedOrigins:
+              - "*"
+            AllowedMethods:
+              - GET
+            AllowedHeaders:
+              - "*"
   ConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -107,6 +129,7 @@ Resources:
       KeySchema:
       - AttributeName: "connectionId"
         KeyType: "HASH"
+        # TODO don't provision stuff, use on-demand scaling
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -123,9 +146,18 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref TableName
+          BUCKET_NAME: !Ref BucketName
       Policies:
       - DynamoDBCrudPolicy:
           TableName: !Ref TableName
+      - Statement:
+        - Effect: Allow
+          Action:
+          - 's3:PutObject'
+          - 's3:GetObject'
+          - 's3:PutObjectAcl'
+          Resource:
+          - 'arn:aws:s3:::mmopaint-data/*'
   OnConnectPermission:
     Type: AWS::Lambda::Permission
     DependsOn:
@@ -165,6 +197,7 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref TableName
+          BUCKET_NAME: !Ref BucketName
       Policies:
       - DynamoDBCrudPolicy:
           TableName: !Ref TableName
@@ -174,6 +207,14 @@ Resources:
           - 'execute-api:ManageConnections'
           Resource:
           - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SimpleChatWebSocket}/*'
+      - Statement:
+        - Effect: Allow
+          Action:
+          - 's3:PutObject'
+          - 's3:GetObject'
+          - 's3:PutObjectAcl'
+          Resource:
+          - 'arn:aws:s3:::mmopaint-data/*'
   SendMessagePermission:
     Type: AWS::Lambda::Permission
     DependsOn:
