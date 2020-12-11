@@ -48,6 +48,7 @@ exports.handler = async event => {
     Key: 'px8x8',
     ACL: 'public-read',
     Body: pxData.join(''),
+    CacheControl: 'no-store',
   }).promise();
 
   const postData = pxData.join('');

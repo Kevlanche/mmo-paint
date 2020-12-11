@@ -91,8 +91,105 @@
         color: gray;
       }
 
+      .modal {
+        position: absolute;
+        display: block;
+        margin: auto;
+        box-shadow: 0 0 .5rem .5rem gray;
+        padding: .5rem;
+        background: #eee;
+        z-index: 999;
+        width: 50vw;
+        height: 70vh;
+        max-width: 24rem;
+        max-height: 30rem;
+        left: 0;
+        right: 0;
+        top: 5vh;
+      }
+
+      .modalcontent {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .modalcontent canvas {
+        /* border: 1px solid red; */
+      }
+
+      .canvaswrapper,
+      canvas {
+        width: 49vw;
+        max-width: 23rem;
+        height: 49vw;
+        max-height: 23rem;
+      }
+      .canvaswrapper {
+        margin: 0 auto;
+        position: relative;
+      }
+
+      .hueslider {
+        background: linear-gradient(to right, #ff0000 0%, #ffff00 17%, #00ff00 33%, #00ffff 50%, #0000ff 67%, #ff00ff 83%, #ff0000 100%);
+        margin: 0.75rem 0;
+        /* padding: .25rem; */
+        /* padding: -1rem; */
+        height: 1.5rem;
+      }
+
+      .dragger {
+        pointer-events: none;
+        border: .125rem solid black;
+        /* background: gray; */
+        background: linear-gradient(to right, #fffc 0%, #fffc 15%, black 15%, black 25%, #fffc 25%, #fffc 45%, black 45%, black 55%, #fffc 55%, #fffc 75%, black 75%, black 85%, #fffc 85%, #fffc 100%);
+        background-size: 100% 50%;
+        background-position: 50% 50%;
+        background-repeat: no-repeat;
+        border-radius: 0.125rem;
+        width: 1rem;
+        height: 3rem;
+        transform: translate(-.5rem, -.85rem);
+        /* margin: -1rem; */
+      }
+
+      .dragger:hover {
+        cursor: grab;
+      }
+      .dragger:active {
+        cursor: grabbing;
+      }
+
+      .modalcontent .controls {
+        display: flex;
+        justify-content: space-between;
+        flex-direction: row;
+      }
+
+      .controls input {
+        width: 50%;
+      }
+
+      .controls button {
+        width: 20%;
+      }
+
+      .coloraim {
+        width: .5rem;
+        height: .5rem;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        border: 1px solid black;
+        box-shadow: 0 0 2px 2px white;
+        transform: translate(-.5rem, -.5rem);
+        pointer-events: none;
+      }
+
     </style>
-    <title>MMO Painter Plan</title>
+    <title>MMO Paint</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to paint.</noscript>
@@ -111,6 +208,22 @@
       Made on stream at <a href="https://www.twitch.tv/Kevlanche">https://www.twitch.tv/Kevlanche</a> <br>
       Get source at <a href="https://github.com/Kevlanche/mmo-paint">https://github.com/Kevlanche/mmo-paint</a>
     </footer>
+
+    <div id="color-picker-template" style="display: none">
+      <div class="canvaswrapper">
+        <canvas width="256" height="256"> </canvas>
+        <div class="coloraim"></div>
+      </div>
+      <div class="hueslider">
+        <div class="dragger"></div>
+      </div>
+      <div class="controls">
+        <input type="text" />
+        <button class="cancel">Cancel</button>
+        <button class="ok">OK</button>
+      </div>
+    </div>
     <script src="index.js"></script>
+
   </body>
 </html>

@@ -123,16 +123,16 @@ Resources:
   ConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      BillingMode: "PAY_PER_REQUEST"
       AttributeDefinitions:
       - AttributeName: "connectionId"
         AttributeType: "S"
       KeySchema:
       - AttributeName: "connectionId"
         KeyType: "HASH"
-        # TODO don't provision stuff, use on-demand scaling
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+      # ProvisionedThroughput:
+      #   ReadCapacityUnits: 5
+      #   WriteCapacityUnits: 5
       SSESpecification:
         SSEEnabled: True
       TableName: !Ref TableName
