@@ -188,6 +188,27 @@
         pointer-events: none;
       }
 
+      .underpicture {
+        width: 32rem;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        padding: .5rem 0;
+      }
+
+      .underpicture * {
+        margin: auto 0;
+      }
+
+      #download {
+        margin-right: 1rem;
+      }
+
+      #gallery img {
+        width: 2rem;
+        height: 2rem;
+      }
+
     </style>
     <title>MMO Paint</title>
   </head>
@@ -203,7 +224,18 @@
     </div>
 
 
-    <p id="status">Status: Loading</p>
+    <div class="underpicture">
+      <p id="status">Status: Loading</p>
+      <div class="saveload">
+        <button id="addToGallery">AddToGallery</button>
+        <button id="download">Download</button>
+        <button id="save">Save</button>
+        <button id="load">Load</button>
+      </div>
+    </div>
+    <div id="gallery">
+      Gallery here
+    </div>
     <footer>
       Made on stream at <a href="https://www.twitch.tv/Kevlanche">https://www.twitch.tv/Kevlanche</a> <br>
       Get source at <a href="https://github.com/Kevlanche/mmo-paint">https://github.com/Kevlanche/mmo-paint</a>

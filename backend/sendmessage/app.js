@@ -22,27 +22,82 @@ exports.handler = async event => {
     endpoint: event.requestContext.domainName + '/' + event.requestContext.stage
   });
 
+  const postToAll = (postData) => {
+    const postCalls = connectionData.Items.map(async ({ connectionId }) => {
+      try {
+        await apigwManagementApi.postToConnection({ ConnectionId: connectionId, Data: postData }).promise();
+      } catch (e) {
+        if (e.statusCode === 410) {
+          console.log(`Found stale connection, deleting ${connectionId}`);
+          await ddb.delete({ TableName: TABLE_NAME, Key: { connectionId } }).promise();
+        } else {
+          throw e;
+        }
+      }
+    });
+
+    return Promise.all(postCalls);
+}
+
   const parsed = JSON.parse(event.body);
-  const { x, y, col } = parsed;
-  if (x === undefined || y === undefined || col === undefined) {
-    return { statusCode: 400, body: 'BadRequest' };
-  }
-  if (!/[0-9a-f]{3}/.test(col)) {
-    return { statusCode: 400, body: 'BadRequest' };
-  }
+  const { x, y, col, addToGallery } = parsed;
+
+  console.log('got message, addtoGallery is:', addToGallery, 'from', parsed);
 
   const pxData = [...(await s3.getObject({
     Bucket: process.env.BUCKET_NAME,
     Key: 'px8x8',
   }).promise()).Body.toString('utf-8')];
-  const colIndex = (x + (y * 8)) * 3;
-  if (colIndex < 0 || colIndex > (pxData.length - 3)) {
+
+  if (addToGallery === true) {
+    let latestIndex = 0;
+    try {
+      latestIndex = parseInt((await s3.getObject({
+        Bucket: process.env.BUCKET_NAME,
+        Key: `gallery8x8/latest`,
+      }).promise()).Body.toString('utf-8'));
+    } catch (e) {
+      // Expected first time
+    }
+
+    const newIndex = (latestIndex + 1) % 16;
+    await s3.copyObject({
+      Bucket: process.env.BUCKET_NAME,
+      Key: `gallery8x8/img${newIndex}`,
+      CopySource: `/${process.env.BUCKET_NAME}/px8x8`,
+      CacheControl: 'no-store',
+      ACL: 'public-read',
+    }).promise();
+    await s3.putObject({
+      Bucket: process.env.BUCKET_NAME,
+      Key: `gallery8x8/latest`,
+      Body: `${newIndex}`,
+    }).promise();
+    try {
+      await postToAll('gallery');
+    } catch (e) {
+      return { statusCode: 500, body: e.stack };
+    }
+
+
+    return { statusCode: 200, body: 'Added to gallery.' };
+  }
+
+  if (x === undefined || y === undefined || col === undefined) {
+    return { statusCode: 400, body: 'BadRequest' };
+  }
+  if (!/^([0-9a-f]{3})+$/.test(col)) {
+    return { statusCode: 400, body: 'BadRequest' };
+  }
+  const firstColIndex = (x + (y * 8)) * 3;
+  const lastColIndex = firstColIndex + (col.length / 3) - 1;
+  if (firstColIndex < 0 || lastColIndex > (pxData.length - 3)) {
     return { statusCode: 400, body: 'BadRequest' };
   }
 
-  pxData[colIndex] = col[0];
-  pxData[colIndex + 1] = col[1];
-  pxData[colIndex + 2] = col[2];
+  for (let i = 0; i < col.length; i++) {
+    pxData[firstColIndex + i] = col[i];
+  }
   await s3.putObject({
     Bucket: process.env.BUCKET_NAME,
     Key: 'px8x8',
@@ -53,21 +108,9 @@ exports.handler = async event => {
 
   const postData = pxData.join('');
 
-  const postCalls = connectionData.Items.map(async ({ connectionId }) => {
-    try {
-      await apigwManagementApi.postToConnection({ ConnectionId: connectionId, Data: postData }).promise();
-    } catch (e) {
-      if (e.statusCode === 410) {
-        console.log(`Found stale connection, deleting ${connectionId}`);
-        await ddb.delete({ TableName: TABLE_NAME, Key: { connectionId } }).promise();
-      } else {
-        throw e;
-      }
-    }
-  });
 
   try {
-    await Promise.all(postCalls);
+    await postToAll(postData);
   } catch (e) {
     return { statusCode: 500, body: e.stack };
   }

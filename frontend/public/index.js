@@ -1,4 +1,5 @@
 const DATA_URL = 'https://mmopaint-data.s3.eu-central-1.amazonaws.com/px8x8';
+const GALLERY_BASE = 'https://mmopaint-data.s3.eu-central-1.amazonaws.com/gallery8x8/';
 
 function HSVtoRGB(h, s, v) {
   var r, g, b, i, f, p, q, t;
@@ -200,6 +201,52 @@ function showColorModal(callback) {
   document.body.appendChild(modal);
 }
 
+const gallery = document.getElementById('gallery');
+async function refreshGallery() {
+  const images = await Promise.all([...Array(16).fill(0)].map(
+    (_,idx) => fetch(`${GALLERY_BASE}img${idx}`, { method: 'GET', mode: 'cors'})
+    .then(res =>  {
+      if (res.status === 200) {
+        return res.text();
+      }
+      throw new Error('Failed to fetch image');
+    })
+    .catch(() => ''))
+  );
+
+  gallery.innerHTML = '';
+  for (let i = 0; i < images.length; i++) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32;
+    canvas.height = 32;
+    const ctx = canvas.getContext('2d');
+
+    const imgData = ctx.createImageData(32, 32);
+    const dataArr = imgData.data;
+
+    if (images[i]) {
+      for (let x = 0; x < 32; x++ ) {
+        for (let y = 0; y < 32; y++ ) {
+          const index = (x + (y * 32)) * 4;
+
+          const downscaledX = Math.floor(x * 8 / 32);
+          const downscaledY = Math.floor(y * 8 / 32);
+          const pixelSliceStart = (downscaledX + (downscaledY * 8)) * 3;
+          const pixelSlice = images[i].slice(pixelSliceStart, pixelSliceStart + 3);
+          dataArr[index]   = parseInt(pixelSlice[0], '16') * 16;
+          dataArr[index + 1]   = parseInt(pixelSlice[1], '16') * 16;
+          dataArr[index + 2]   = parseInt(pixelSlice[2], '16') * 16;
+          dataArr[index + 3]   = 255;
+        }
+      }
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const img = document.createElement('img');
+    img.src = canvas.toDataURL();
+    gallery.appendChild(img);
+  }
+}
 
 async function fetchData() {
   const res = await fetch(DATA_URL, {
@@ -233,12 +280,13 @@ function updateStatus(state) {
 function refresh(preloadedData) {
   fetchAndApplyData(preloadedData).catch(err => {
     console.warn('Error while refreshing', err);
-    // status.innerText = 'Status: Error';
     updateStatus('Error');
   })
 }
 
 async function init() {
+  await refreshGallery();
+
   const socket = new WebSocket("wss://scuv0gmugl.execute-api.eu-central-1.amazonaws.com/Prod");
   socket.onopen = function (event) {
     updateStatus('Connected');
@@ -246,6 +294,9 @@ async function init() {
   };
 
   socket.onmessage = (event) => {
+    if (event.data === 'gallery') {
+      refreshGallery().catch(console.warn);
+    }
     refresh(event.data);
   }
 
@@ -342,6 +393,97 @@ async function init() {
     }
 
   }
+
+  document.getElementById('addToGallery').onclick = () => {
+    (async () => {
+      socket.send(JSON.stringify({
+        action: 'sendmessage',
+        body: 'foo',
+        addToGallery: true,
+      }));
+    })()
+      .catch(console.warn);
+  };
+  document.getElementById('download').onclick = () => {
+    const scale = prompt('Enter image scale (1 = 8x8 pixels, 2=16x16 etc)', '1')
+    if (!scale) {
+      return;
+    }
+    const scaledSize = parseInt(scale, '10') * 8;
+    if (scaledSize <= 0) {
+      alert('Oh, you. Please enter a number >= 1');
+      return;
+    }
+    if (scaledSize > 1024) {
+      alert('Too large. Please enter a number number <= 128');
+      return;
+    }
+
+    (async () => {
+      const pixels = await fetchData();
+      const canvas = document.createElement('canvas');
+      canvas.width = scaledSize;
+      canvas.height = scaledSize;
+      const ctx = canvas.getContext('2d');
+
+      const imgData = ctx.createImageData(scaledSize, scaledSize);
+      const dataArr = imgData.data;
+
+      for (let x = 0; x < scaledSize; x++ ) {
+        for (let y = 0; y < scaledSize; y++ ) {
+          const index = (x + (y * scaledSize)) * 4;
+
+          const downscaledX = Math.floor(x * 8 / scaledSize);
+          const downscaledY = Math.floor(y * 8 / scaledSize);
+          const pixelSliceStart = (downscaledX + (downscaledY * 8)) * 3;
+          const pixelSlice = pixels.slice(pixelSliceStart, pixelSliceStart + 3);
+          dataArr[index]   = parseInt(pixelSlice[0], '16') * 16;
+          dataArr[index + 1]   = parseInt(pixelSlice[1], '16') * 16;
+          dataArr[index + 2]   = parseInt(pixelSlice[2], '16') * 16;
+          dataArr[index + 3]   = 255;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+
+      canvas.toBlob((b) => {
+        var a = document.createElement('a');
+        a.textContent = 'Download';
+        a.download = 'painting.png';
+        a.href = window.URL.createObjectURL(b);
+        a.click();
+      });
+    })()
+      .catch(console.warn);
+  };
+
+  document.getElementById('save').onclick = () => {
+    (async () => {
+      const data = await fetchData();
+      await navigator.clipboard.writeText(data);
+      alert('Image stored in your clipboard, restore it later with the Load button');
+    })()
+      .catch(console.warn);
+  };
+
+  document.getElementById('load').onclick = () => {
+    const data = window.prompt('Please enter the saved string');;
+    if (!data) {
+      return;
+    }
+    if (!/^[a-z0-9]{192}$/.test(data)) {
+      alert('Invalid color, did it really originate from the save button?');
+      return;
+    }
+
+    socket.send(JSON.stringify({
+      action: 'sendmessage',
+      body: 'foo',
+      x: 0,
+      y: 0,
+      col: data,
+    }));
+  };
 
   for (let y = 0; y < 8; y++) {
     for (let x = 0; x < 8; x++) {
